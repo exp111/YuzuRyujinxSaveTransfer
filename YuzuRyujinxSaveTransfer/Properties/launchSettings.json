@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "YuzuRyujinxSaveTransfer": {
+      "commandName": "Project",
+      "commandLineArgs": "--yuzu-path \"C:\\Users\\Exp\\AppData\\Roaming\\yuzu\" --ryujinx-path \"C:\\Users\\Exp\\AppData\\Roaming\\Ryujinx\""
+    }
+  }
+}

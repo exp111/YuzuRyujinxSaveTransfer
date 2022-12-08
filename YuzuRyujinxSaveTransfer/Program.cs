@@ -18,7 +18,7 @@ internal class Program
                 else // ~/.local/share/
                     return new DirectoryInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yuzu"));
             },
-            description: "Yuzu's file path");
+            description: "Yuzu's file path"); //TODO: if the nand dir isn't there we get an exception, so we'd either need to check for both possibilities or add a new arg which overwrites this one
         var yuzuUser = new Option<string?>(
             name: "--yuzu-user",
             description: "Preferred user for yuzu")

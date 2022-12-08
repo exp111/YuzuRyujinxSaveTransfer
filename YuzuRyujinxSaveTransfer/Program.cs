@@ -149,7 +149,7 @@ internal class Program
                 Console.WriteLine($"- TitleID {save.TitleID} {gameInfo}, Path: {save.Path}");
             }
 
-            // TODO: ask/take from args what to transfer
+            // TODO: ask what to transfer
             if (string.IsNullOrEmpty(source))
             {
                 Console.WriteLine($"No source given! (--{sourceOption.Name} <{string.Join("|", sourceOption.GetCompletions())}>)");

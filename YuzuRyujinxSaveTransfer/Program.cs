@@ -18,10 +18,13 @@ internal class Program
                 else // ~/.local/share/
                     return new DirectoryInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yuzu"));
             },
-            description: "Yuzu's file path"); //TODO: default to 
+            description: "Yuzu's file path");
         var yuzuUser = new Option<string?>(
             name: "--yuzu-user",
-            description: "Preferred user for yuzu");
+            description: "Preferred user for yuzu")
+        {
+            ArgumentHelpName = "user-id"
+        };
         var ryujinxPath = new Option<DirectoryInfo?>(
             name: "--ryujinx-path",
             getDefaultValue: () =>
@@ -33,7 +36,8 @@ internal class Program
             name: "--titles",
             description: "Title IDs that should be transfered")
         {
-            AllowMultipleArgumentsPerToken = true
+            AllowMultipleArgumentsPerToken = true,
+            ArgumentHelpName = "title-ids"
         };
         var transferAll = new Option<bool>(
             name: "--all",
@@ -43,9 +47,10 @@ internal class Program
             name: "--game-names",
             getDefaultValue: () => true,
             description: "Tries to fetch the game names for the title ids to make those more readable.");
-        var source = new Option<string?>(
+        var sourceOption = new Option<string?>(
             name: "--source",
-            description: "Source of the saves to be transfered").FromAmong("yuzu", "ryujinx");
+            description: "Source of the saves to be transfered")
+            .FromAmong("yuzu", "ryujinx");
 
         var rootCommand = new RootCommand("Transfers Yuzu and Ryujinx saves between each other");
         rootCommand.AddOption(yuzuPath);
@@ -53,7 +58,7 @@ internal class Program
         rootCommand.AddOption(yuzuUser);
         rootCommand.AddOption(transferTitles);
         rootCommand.AddOption(transferAll);
-        rootCommand.AddOption(source);
+        rootCommand.AddOption(sourceOption);
         rootCommand.AddOption(gameNames);
 
         //TODO: subcommands list/transfer?
@@ -94,7 +99,7 @@ internal class Program
                 //TODO: ask interactively
                 if (selectedUser == null) // TODO: remove this when we ask
                 {
-                    Console.WriteLine("Please specify a valid yuzu user");
+                    Console.WriteLine($"Please specify a valid yuzu user (--{yuzuUser.Name} <{yuzuUser.ArgumentHelpName}>)");
                     return;
                 }
             }
@@ -147,7 +152,7 @@ internal class Program
             // TODO: ask/take from args what to transfer
             if (string.IsNullOrEmpty(source))
             {
-                Console.WriteLine("No source given!");
+                Console.WriteLine($"No source given! (--{sourceOption.Name} <{string.Join("|", sourceOption.GetCompletions())}>)");
                 return;
             }
             var sourceSaves = source == "yuzu" ? yuzuSaves : ryujinxSaves;
@@ -192,7 +197,7 @@ internal class Program
                     Console.WriteLine("Failed!");
             }
         },
-        yuzuPath, ryujinxPath, yuzuUser, transferTitles, transferAll, source, gameNames); //TODO: use binders for yuzu parser?
+        yuzuPath, ryujinxPath, yuzuUser, transferTitles, transferAll, sourceOption, gameNames); //TODO: use binders for yuzu parser?
 
         return await rootCommand.InvokeAsync(args);
     }

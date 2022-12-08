@@ -7,6 +7,14 @@
     "Transfer Yuzu All": {
       "commandName": "Project",
       "commandLineArgs": "--yuzu-path \"C:\\Users\\Exp\\AppData\\Roaming\\yuzu\"\r\n--yuzu-user EDEAB457825D7B11A743551E73B5F887\r\n--ryujinx-path \"C:\\Users\\Exp\\AppData\\Roaming\\Ryujinx\"\r\n--titles 01002E7016C46000\r\n--all\r\n--source yuzu"
+    },
+    "Transfer No Source": {
+      "commandName": "Project",
+      "commandLineArgs": "--yuzu-path \"C:\\Users\\Exp\\AppData\\Roaming\\yuzu\"\r\n--yuzu-user EDEAB457825D7B11A743551E73B5F887\r\n--ryujinx-path \"C:\\Users\\Exp\\AppData\\Roaming\\Ryujinx\""
+    },
+    "Transfer No Yuzu User": {
+      "commandName": "Project",
+      "commandLineArgs": "--yuzu-path \"C:\\Users\\Exp\\AppData\\Roaming\\yuzu\"\r\n--ryujinx-path \"C:\\Users\\Exp\\AppData\\Roaming\\Ryujinx\""
     }
   }
 }

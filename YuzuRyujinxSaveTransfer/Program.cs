@@ -47,7 +47,7 @@ internal class Program
             name: "--source",
             description: "Source of the saves to be transfered").FromAmong("yuzu", "ryujinx");
 
-        var rootCommand = new RootCommand("Transfers ");
+        var rootCommand = new RootCommand("Transfers Yuzu and Ryujinx saves between each other");
         rootCommand.AddOption(yuzuPath);
         rootCommand.AddOption(ryujinxPath);
         rootCommand.AddOption(yuzuUser);

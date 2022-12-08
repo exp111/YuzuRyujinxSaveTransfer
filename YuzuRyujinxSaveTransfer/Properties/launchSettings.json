@@ -2,11 +2,11 @@
   "profiles": {
     "Transfer Yuzu Single": {
       "commandName": "Project",
-      "commandLineArgs": "--yuzu-path \"C:\\Users\\Exp\\AppData\\Roaming\\yuzu\"\r\n--ryujinx-path \"C:\\Users\\Exp\\AppData\\Roaming\\Ryujinx\"\r\n--titles 01002E7016C46000\r\n--source yuzu"
+      "commandLineArgs": "--yuzu-path \"C:\\Users\\Exp\\AppData\\Roaming\\yuzu\"\r\n--yuzu-user EDEAB457825D7B11A743551E73B5F887\r\n--ryujinx-path \"C:\\Users\\Exp\\AppData\\Roaming\\Ryujinx\"\r\n--titles 01002E7016C46000\r\n--source yuzu"
     },
     "Transfer Yuzu All": {
       "commandName": "Project",
-      "commandLineArgs": "--yuzu-path \"C:\\Users\\Exp\\AppData\\Roaming\\yuzu\"\r\n--ryujinx-path \"C:\\Users\\Exp\\AppData\\Roaming\\Ryujinx\"\r\n--titles 01002E7016C46000\r\n--all\r\n--source yuzu"
+      "commandLineArgs": "--yuzu-path \"C:\\Users\\Exp\\AppData\\Roaming\\yuzu\"\r\n--yuzu-user EDEAB457825D7B11A743551E73B5F887\r\n--ryujinx-path \"C:\\Users\\Exp\\AppData\\Roaming\\Ryujinx\"\r\n--titles 01002E7016C46000\r\n--all\r\n--source yuzu"
     }
   }
 }

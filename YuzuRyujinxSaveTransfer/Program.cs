@@ -1,38 +1,33 @@
 ﻿using System.CommandLine;
-using System.Diagnostics;
-using System.Linq;
-using System.Net;
 using System.Net.Http.Json;
-using System.Text.Encodings.Web;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading.Tasks;
 using System.Web;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 internal class Program
 {
-    //TODO: move input args into local vars
-    // Input
-    public static DirectoryInfo YuzuPath;
-    public static DirectoryInfo RyujinxPath;
-
-    //TODO: give them as args
-    // The final save folders
-    public static DirectoryInfo YuzuSavePath;
-    public static DirectoryInfo RyujinxSavePath;
-
-
     private static async Task<int> Main(string[] args)
     {
         var yuzuPath = new Option<DirectoryInfo?>( //TODO: alias
             name: "--yuzu-path",
-            description: "Yuzu's file path");
+            getDefaultValue: () =>
+            {
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                    return new DirectoryInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "yuzu"));
+                else // ~/.local/share/
+                    return new DirectoryInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yuzu"));
+            },
+            description: "Yuzu's file path"); //TODO: default to 
         var yuzuUser = new Option<string?>(
             name: "--yuzu-user",
             description: "Preferred user for yuzu");
         var ryujinxPath = new Option<DirectoryInfo?>(
             name: "--ryujinx-path",
+            getDefaultValue: () =>
+            {
+                return new DirectoryInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Ryujinx"));
+            },
             description: "Ryujinx's file path");
         var transferTitles = new Option<string[]?>(
             name: "--titles",
@@ -44,7 +39,7 @@ internal class Program
             name: "--all",
             getDefaultValue: () => false,
             description: "Transfers all saves.");
-        var gameNames = new Option<bool>(
+        var gameNames = new Option<bool>( //TODO: add force refresh?
             name: "--game-names",
             getDefaultValue: () => true,
             description: "Tries to fetch the game names for the title ids to make those more readable.");
@@ -67,13 +62,22 @@ internal class Program
         {
             Console.WriteLine($"yuzu: {yuzu}, ryujinx: {ryujinx}");
             //TODO: ask interactively for missing stuff
-            YuzuPath = yuzu;
-            RyujinxPath = ryujinx;
 
-            //TODO: sanity checks on yuzu/ryujinx save folders
+            // sanity checks on yuzu/ryujinx save folders
+            if (!Directory.Exists(yuzu.FullName))
+            {
+                Console.WriteLine("Yuzu path doesn't exist!");
+                return;
+            }
+            if (!Directory.Exists(ryujinx.FullName))
+            {
+                Console.WriteLine("RyuJinx path doesn't exist!");
+                return;
+            }
+
             //TODO: ask which yuzu user to use if there are multiple
             var users = GetYuzuUsers(yuzu.FullName);
-            dynamic selectedUser;
+            dynamic? selectedUser = null;
             if (users.Count > 1)
             {
                 foreach (var user in users)
@@ -88,9 +92,11 @@ internal class Program
                         selectedUser = user;
                 }
                 //TODO: ask interactively
-                //FIXME: remove debug test thing
-                selectedUser = users[1];
-
+                if (selectedUser == null) // TODO: remove this when we ask
+                {
+                    Console.WriteLine("Please specify a valid yuzu user");
+                    return;
+                }
             }
             else if (users.Count == 1)
             {
@@ -102,14 +108,14 @@ internal class Program
                 return; //TODO: still should be able to list ryu stuff?
             }
             Console.WriteLine($"Using yuzu user {selectedUser.Name} with {selectedUser.SaveCount} saves.");
-            YuzuSavePath = selectedUser.FullPath;
-            RyujinxSavePath = new DirectoryInfo(Path.Combine(RyujinxPath.FullName, "bis/user/save"));
+            var yuzuSavePath = selectedUser.FullPath;
+            var ryujinxSavePath = new DirectoryInfo(Path.Combine(ryujinx.FullName, "bis/user/save"));
             //TODO: do the main stuff
             // print all save gameids 
             Dictionary<string, string> titleDB = null;
             if (shouldShowGame)
                 titleDB = GetTitleDB(); // only when option to fetch names is enabled
-            var yuzuSaves = ListYuzuSaves(YuzuSavePath);
+            List<Save> yuzuSaves = ListYuzuSaves(yuzuSavePath);
             Console.WriteLine("Yuzu:");
             foreach (var save in yuzuSaves)
             {
@@ -123,7 +129,7 @@ internal class Program
                     
                 Console.WriteLine($"- TitleID {save.TitleID} {gameInfo}, Path: {save.Path}");
             }
-            var ryujinxSaves = ListRyujinxSaves(RyujinxSavePath);
+            var ryujinxSaves = ListRyujinxSaves(ryujinxSavePath);
             Console.WriteLine("Ryujinx:");
             foreach (var save in ryujinxSaves)
             {
@@ -148,7 +154,7 @@ internal class Program
             var destSaves = source == "yuzu" ? ryujinxSaves : yuzuSaves;
             if (all)
             {
-                titles = sourceSaves.Select(s => (string)s.TitleID).ToArray();
+                titles = sourceSaves.Select(s => s.TitleID).ToArray();
             }
             if (titles == null || titles.Length == 0)
                 return;
@@ -180,8 +186,8 @@ internal class Program
                 }
 
                 Console.WriteLine($"Transfering {title} {gameInfo} from {srcSave.Path} to {dstSave.Path}");
-                var sourcePath = source == "yuzu" ? YuzuSavePath : RyujinxSavePath;
-                var destPath = source == "yuzu" ? RyujinxSavePath : YuzuSavePath;
+                var sourcePath = source == "yuzu" ? yuzuSavePath : ryujinxSavePath;
+                var destPath = source == "yuzu" ? ryujinxSavePath : yuzuSavePath;
                 if (!TransferSave(sourcePath, destPath, srcSave.Path, dstSave.Path, source))
                     Console.WriteLine("Failed!");
             }
@@ -214,14 +220,19 @@ internal class Program
         return users;
     }
 
-    //TODO: change to custom Game class or smth?
-    public static List<dynamic> ListYuzuSaves(DirectoryInfo YuzuSavePath)
+    public class Save
     {
-        List<dynamic> saves = new();
+        public string Path;
+        public string TitleID;
+    }
+    // List all yuzu saves and their titleids in the given folder
+    public static List<Save> ListYuzuSaves(DirectoryInfo YuzuSavePath)
+    {
+        List<Save> saves = new();
         foreach (var dir in YuzuSavePath.GetDirectories())
         {
             saves.Add(
-                new
+                new Save
                 {
                     Path = dir.Name,
                     TitleID = dir.Name
@@ -229,10 +240,10 @@ internal class Program
         }
         return saves;
     }
-
-    public static List<dynamic> ListRyujinxSaves(DirectoryInfo RyujinxSavePath)
+    // List all ryujinx saves and their titleids in the given folder
+    public static List<Save> ListRyujinxSaves(DirectoryInfo RyujinxSavePath)
     {
-        List<dynamic> saves = new();
+        List<Save> saves = new();
         foreach (var dir in RyujinxSavePath.GetDirectories())
         {
             // Read titleid from extradata
@@ -244,7 +255,7 @@ internal class Program
             }
 
             saves.Add(
-                new
+                new Save
                 {
                     Path = dir.Name,
                     TitleID = titleID

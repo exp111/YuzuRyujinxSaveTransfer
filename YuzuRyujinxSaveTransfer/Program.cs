@@ -65,7 +65,7 @@ internal class Program
 
         rootCommand.SetHandler((yuzu, ryujinx, yUser, titles, all, source, shouldShowGame) =>
         {
-            Console.WriteLine($"yuzu: {yuzu}, ryujinx: {ryujinx}");
+            Console.WriteLine($"Yuzu Folder: {yuzu}\nRyujinx Folder: {ryujinx}");
             //TODO: ask interactively for missing stuff
 
             // sanity checks on yuzu/ryujinx save folders
@@ -79,12 +79,15 @@ internal class Program
                 Console.WriteLine("RyuJinx path doesn't exist!");
                 return;
             }
+            Console.WriteLine();
 
             //TODO: ask which yuzu user to use if there are multiple
+            // List yuzu users and specify which one to use
             var users = GetYuzuUsers(yuzu.FullName);
-            dynamic? selectedUser = null;
+            User? selectedUser = null;
             if (users.Count > 1)
             {
+                Console.WriteLine("Yuzu Saves:");
                 foreach (var user in users)
                 {
                     Console.WriteLine($"User {user.Name} ({user.SaveCount} saves)");
@@ -113,9 +116,12 @@ internal class Program
                 return; //TODO: still should be able to list ryu stuff?
             }
             Console.WriteLine($"Using yuzu user {selectedUser.Name} with {selectedUser.SaveCount} saves.");
+            Console.WriteLine();
+
+            // The final save paths which contain the folder with saves
             var yuzuSavePath = selectedUser.FullPath;
             var ryujinxSavePath = new DirectoryInfo(Path.Combine(ryujinx.FullName, "bis/user/save"));
-            //TODO: do the main stuff
+
             // print all save gameids 
             Dictionary<string, string> titleDB = null;
             if (shouldShowGame)
@@ -141,8 +147,10 @@ internal class Program
             var ryujinxSaves = ListRyujinxSaves(ryujinxSavePath);
             Console.WriteLine("Ryujinx:");
             printSaves(ryujinxSaves);
+            Console.WriteLine();
 
-            // TODO: ask what to transfer
+            // Transfer setup
+            // TODO: ask interactively what to transfer if missing
             if (string.IsNullOrEmpty(source))
             {
                 Console.WriteLine($"No source given! (--{sourceOption.Name} <{string.Join("|", sourceOption.GetCompletions())}>)");
@@ -160,6 +168,9 @@ internal class Program
 
             Console.WriteLine("Titles to transfer:");
             Console.WriteLine(string.Join(",", titles));
+            Console.WriteLine();
+
+            // Transfer
             //for each one: check if exists on both ends + transfer
             foreach (var title in titles)
             {
@@ -196,20 +207,26 @@ internal class Program
         return await rootCommand.InvokeAsync(args);
     }
 
+    public class User
+    {
+        public string Name;
+        public int SaveCount;
+        public DirectoryInfo FullPath;
+    }
     //TODO: move those into a shared lib so we can call it from cli and gui
-    // Gets all yuzu users and their saves //TODO: change dynamic to class?
-    public static List<dynamic> GetYuzuUsers(string savePath)
+    // Gets all yuzu users and their saves
+    public static List<User> GetYuzuUsers(string savePath)
     {
         // fixme: DirInfo->string->DirInfo => make it into DirInfo->DirInfo?
         var baseSavePath = new DirectoryInfo(
             Path.Combine(savePath,
                 "nand/user/save/0000000000000000")); // traverse into the base user save folder
         var userDirs = baseSavePath.GetDirectories();
-        List<dynamic> users = new(userDirs.Length);
+        List<User> users = new(userDirs.Length);
         foreach (var userDir in userDirs)
         {
             // Add each user save dir and the number of saves inside
-            users.Add(new
+            users.Add(new User
             {
                 Name = userDir.Name,
                 SaveCount = userDir.GetDirectories().Length,

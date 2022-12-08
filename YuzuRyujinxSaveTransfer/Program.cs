@@ -1,12 +1,15 @@
 ﻿using System.CommandLine;
 using System.Threading.Tasks;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 internal class Program
 {
+    //TODO: move input args into local vars
     // Input
     public static DirectoryInfo YuzuPath;
     public static DirectoryInfo RyujinxPath;
 
+    //TODO: give them as args
     // The final save folders
     public static DirectoryInfo YuzuSavePath;
     public static DirectoryInfo RyujinxSavePath;
@@ -15,9 +18,12 @@ internal class Program
     private static async Task<int> Main(string[] args)
     {
         Console.WriteLine("Hello, World!");
-        var yuzuPath = new Option<DirectoryInfo?>( //TODO: is FileInfo the right class? we want a path/folder
+        var yuzuPath = new Option<DirectoryInfo?>(
             name: "--yuzu-path",
             description: "Yuzu's file path");
+        var yuzuUser = new Option<string?>(
+            name: "--yuzu-user",
+            description: "Preferred user for yuzu");
         var ryujinxPath = new Option<DirectoryInfo?>(
             name: "--ryujinx-path",
             description: "Ryujinx's file path");
@@ -26,7 +32,7 @@ internal class Program
         rootCommand.AddOption(yuzuPath);
         rootCommand.AddOption(ryujinxPath);
 
-        rootCommand.SetHandler((yuzu, ryujinx) =>
+        rootCommand.SetHandler((yuzu, ryujinx, yUser) =>
         {
             //ReadFile(file!);
             Console.WriteLine($"yuzu: {yuzu}, ryujinx: {ryujinx}");
@@ -40,13 +46,21 @@ internal class Program
             dynamic selectedUser;
             if (users.Count > 1)
             {
-                //TODO: ask
                 foreach (var user in users)
                 {
                     Console.WriteLine($"User {user.Name} ({user.SaveCount} saves)");
                 }
-                //FIXME: debug test thing
+                
+                if (!string.IsNullOrEmpty(yUser))
+                {
+                    var user = users.Find(u => u.Name.ToLower() == yUser.ToLower());
+                    if (user != null)
+                        selectedUser = user;
+                }
+                //TODO: ask interactively
+                //FIXME: remove debug test thing
                 selectedUser = users[1];
+                
             }
             else if (users.Count == 1)
             {
@@ -61,7 +75,7 @@ internal class Program
             YuzuSavePath = selectedUser.FullPath;
             RyujinxSavePath = new DirectoryInfo(Path.Combine(RyujinxPath.FullName, "bis/user/save"));
             //TODO: do the main stuff
-            //TODO: print all save gameids (plus option to fetch names)
+            // print all save gameids //TODO: plus option to fetch names
             var yuzuSaves = ListYuzuSaves();
             Console.WriteLine("Yuzu:");
             foreach (var save in yuzuSaves)
@@ -77,11 +91,12 @@ internal class Program
 
             //TODO: ask/take from args what to transfer + overwrite? backups?
         },
-            yuzuPath, ryujinxPath);
+            yuzuPath, ryujinxPath, yuzuUser);
 
         return await rootCommand.InvokeAsync(args);
     }
 
+    //TODO: move those into a shared lib so we can call it from cli and gui
     // Gets all yuzu users and their saves //TODO: change dynamic to class?
     public static List<dynamic> GetYuzuUsers()
     {
@@ -125,13 +140,46 @@ internal class Program
         List<dynamic> saves = new();
         foreach (var dir in RyujinxSavePath.GetDirectories())
         {
+            // Read titleid from extradata
+            var extraData = dir.GetFiles("ExtraData0", SearchOption.TopDirectoryOnly);
+            var titleID = "<Missing ExtraData>";
+            if (extraData.Length > 0)
+            {
+                titleID = GetApplicationID(extraData[0]);
+            }
+            
             saves.Add(
                 new
                 {
                     Path = dir.Name,
-                    TitleID = dir.Name //TODO: do vodoo magic to get the titleID
+                    TitleID = titleID
                 });
         }
         return saves;
+    }
+
+    // Reads the application id from a ExtraData file
+    public static string GetApplicationID(FileInfo extraData)
+    {
+        // the applicationID are the first 8 bytes (u64) as hex
+        var applicationID = string.Empty;
+        try
+        {
+            using (var file = extraData.OpenRead())
+            {
+                var buffer = new byte[8];
+                if (file.Read(buffer, 0, 8) != 8)
+                    throw new Exception("ExtraData too small");
+
+                var app = BitConverter.ToUInt64(buffer, 0); // read as u64
+                applicationID = string.Format("{0:X16}", app); // convert to hex
+            }
+        }
+        catch (Exception e)
+        {
+            Console.Error.WriteLine($"Failed reading ExtraData: {e}");
+            return applicationID;
+        }
+        return applicationID;
     }
 }

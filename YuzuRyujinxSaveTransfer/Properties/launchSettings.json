@@ -1,8 +1,12 @@
 {
   "profiles": {
-    "YuzuRyujinxSaveTransfer": {
+    "Transfer Yuzu Single": {
       "commandName": "Project",
-      "commandLineArgs": "--yuzu-path \"C:\\Users\\Exp\\AppData\\Roaming\\yuzu\" --ryujinx-path \"C:\\Users\\Exp\\AppData\\Roaming\\Ryujinx\""
+      "commandLineArgs": "--yuzu-path \"C:\\Users\\Exp\\AppData\\Roaming\\yuzu\"\r\n--ryujinx-path \"C:\\Users\\Exp\\AppData\\Roaming\\Ryujinx\"\r\n--titles 01002E7016C46000\r\n--source yuzu"
+    },
+    "Transfer Yuzu All": {
+      "commandName": "Project",
+      "commandLineArgs": "--yuzu-path \"C:\\Users\\Exp\\AppData\\Roaming\\yuzu\"\r\n--ryujinx-path \"C:\\Users\\Exp\\AppData\\Roaming\\Ryujinx\"\r\n--titles 01002E7016C46000\r\n--all\r\n--source yuzu"
     }
   }
 }

@@ -18,7 +18,7 @@ internal class Program
     private static async Task<int> Main(string[] args)
     {
         Console.WriteLine("Hello, World!");
-        var yuzuPath = new Option<DirectoryInfo?>(
+        var yuzuPath = new Option<DirectoryInfo?>( //TODO: alias
             name: "--yuzu-path",
             description: "Yuzu's file path");
         var yuzuUser = new Option<string?>(
@@ -32,6 +32,8 @@ internal class Program
         rootCommand.AddOption(yuzuPath);
         rootCommand.AddOption(ryujinxPath);
 
+        //TODO: subcommands list/transfer?
+
         rootCommand.SetHandler((yuzu, ryujinx, yUser) =>
         {
             //ReadFile(file!);
@@ -42,7 +44,7 @@ internal class Program
 
             //TODO: sanity checks on yuzu/ryujinx save folders
             //TODO: ask which yuzu user to use if there are multiple
-            var users = GetYuzuUsers();
+            var users = GetYuzuUsers(yuzu.FullName);
             dynamic selectedUser;
             if (users.Count > 1)
             {
@@ -76,13 +78,13 @@ internal class Program
             RyujinxSavePath = new DirectoryInfo(Path.Combine(RyujinxPath.FullName, "bis/user/save"));
             //TODO: do the main stuff
             // print all save gameids //TODO: plus option to fetch names
-            var yuzuSaves = ListYuzuSaves();
+            var yuzuSaves = ListYuzuSaves(YuzuSavePath);
             Console.WriteLine("Yuzu:");
             foreach (var save in yuzuSaves)
             {
                 Console.WriteLine($"- TitleID {save.TitleID}, Path: {save.Path}");
             }
-            var ryujinxSaves = ListRyujinxSaves();
+            var ryujinxSaves = ListRyujinxSaves(RyujinxSavePath);
             Console.WriteLine("Ryujinx:");
             foreach (var save in ryujinxSaves)
             {
@@ -91,18 +93,18 @@ internal class Program
 
             //TODO: ask/take from args what to transfer + overwrite? backups?
         },
-            yuzuPath, ryujinxPath, yuzuUser);
+            yuzuPath, ryujinxPath, yuzuUser); //TODO: use binders for yuzu parser?
 
         return await rootCommand.InvokeAsync(args);
     }
 
     //TODO: move those into a shared lib so we can call it from cli and gui
     // Gets all yuzu users and their saves //TODO: change dynamic to class?
-    public static List<dynamic> GetYuzuUsers()
+    public static List<dynamic> GetYuzuUsers(string savePath)
     {
         // fixme: DirInfo->string->DirInfo => make it into DirInfo->DirInfo?
         var baseSavePath = new DirectoryInfo(
-            Path.Combine(YuzuPath.FullName, 
+            Path.Combine(savePath, 
                 "nand/user/save/0000000000000000")); // traverse into the base user save folder
         var userDirs = baseSavePath.GetDirectories();
         List<dynamic> users = new(userDirs.Length);
@@ -120,7 +122,7 @@ internal class Program
     }
 
     //TODO: change to custom Game class or smth?
-    public static List<dynamic> ListYuzuSaves()
+    public static List<dynamic> ListYuzuSaves(DirectoryInfo YuzuSavePath)
     {
         List<dynamic> saves = new();
         foreach (var dir in YuzuSavePath.GetDirectories())
@@ -135,7 +137,7 @@ internal class Program
         return saves;
     }
 
-    public static List<dynamic> ListRyujinxSaves()
+    public static List<dynamic> ListRyujinxSaves(DirectoryInfo RyujinxSavePath)
     {
         List<dynamic> saves = new();
         foreach (var dir in RyujinxSavePath.GetDirectories())

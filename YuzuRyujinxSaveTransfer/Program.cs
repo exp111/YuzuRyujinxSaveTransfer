@@ -1,7 +1,13 @@
 ﻿using System.CommandLine;
 using System.Diagnostics;
 using System.Linq;
+using System.Net;
+using System.Net.Http.Json;
+using System.Text.Encodings.Web;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using System.Web;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
 internal class Program
@@ -39,6 +45,10 @@ internal class Program
             name: "--all",
             getDefaultValue: () => false,
             description: "Transfers all saves.");
+        var gameNames = new Option<bool>(
+            name: "--game-names",
+            getDefaultValue: () => true,
+            description: "Tries to fetch the game names for the title ids to make those more readable.");
         var source = new Option<string?>(
             name: "--source",
             description: "Source of the saves to be transfered").FromAmong("yuzu", "ryujinx");
@@ -50,10 +60,11 @@ internal class Program
         rootCommand.AddOption(transferTitles);
         rootCommand.AddOption(transferAll);
         rootCommand.AddOption(source);
+        rootCommand.AddOption(gameNames);
 
         //TODO: subcommands list/transfer?
 
-        rootCommand.SetHandler((yuzu, ryujinx, yUser, titles, all, source) =>
+        rootCommand.SetHandler((yuzu, ryujinx, yUser, titles, all, source, shouldShowGame) =>
         {
             Console.WriteLine($"yuzu: {yuzu}, ryujinx: {ryujinx}");
             //TODO: ask interactively for missing stuff
@@ -95,21 +106,40 @@ internal class Program
             YuzuSavePath = selectedUser.FullPath;
             RyujinxSavePath = new DirectoryInfo(Path.Combine(RyujinxPath.FullName, "bis/user/save"));
             //TODO: do the main stuff
-            // print all save gameids //TODO: plus option to fetch names
+            // print all save gameids 
+            Dictionary<string, string> titleDB = null;
+            if (shouldShowGame)
+                titleDB = GetTitleDB(); // only when option to fetch names is enabled
             var yuzuSaves = ListYuzuSaves(YuzuSavePath);
             Console.WriteLine("Yuzu:");
             foreach (var save in yuzuSaves)
             {
-                Console.WriteLine($"- TitleID {save.TitleID}, Path: {save.Path}");
+                string gameInfo = "";
+                if (shouldShowGame)
+                {
+                    var gameName = "<unknown>";
+                    titleDB.TryGetValue(save.TitleID, out gameName);
+                    gameInfo = $"({gameName})";
+                }
+                    
+                Console.WriteLine($"- TitleID {save.TitleID} {gameInfo}, Path: {save.Path}");
             }
             var ryujinxSaves = ListRyujinxSaves(RyujinxSavePath);
             Console.WriteLine("Ryujinx:");
             foreach (var save in ryujinxSaves)
             {
-                Console.WriteLine($"- TitleID {save.TitleID}, Path: {save.Path}");
+                string gameInfo = "";
+                if (shouldShowGame)
+                {
+                    var gameName = "<unknown>";
+                    titleDB.TryGetValue(save.TitleID, out gameName);
+                    gameInfo = $"({gameName})";
+                }
+
+                Console.WriteLine($"- TitleID {save.TitleID} {gameInfo}, Path: {save.Path}");
             }
 
-            //TODO: ask/take from args what to transfer + delete+overwrite? backups?
+            // TODO: ask/take from args what to transfer
             if (string.IsNullOrEmpty(source))
             {
                 Console.WriteLine("No source given!");
@@ -149,7 +179,7 @@ internal class Program
                     Console.WriteLine("Failed!");
             }
         },
-        yuzuPath, ryujinxPath, yuzuUser, transferTitles, transferAll, source); //TODO: use binders for yuzu parser?
+        yuzuPath, ryujinxPath, yuzuUser, transferTitles, transferAll, source, gameNames); //TODO: use binders for yuzu parser?
 
         return await rootCommand.InvokeAsync(args);
     }
@@ -307,5 +337,68 @@ internal class Program
                 CopyDirectory(subDir.FullName, newDestinationDir, true);
             }
         }
+    }
+
+    public static string TitleDBCache = "titles.json";
+    public static Dictionary<string, string> GetTitleDB()
+    {
+        // check cache
+        if (File.Exists(TitleDBCache))
+        {
+            using (var file = File.OpenRead(TitleDBCache))
+                return JsonSerializer.Deserialize<Dictionary<string, string>>(file); //TODO: error handling
+        }
+        
+        // else update
+        return UpdateTitleDB();
+    }
+
+
+    public class TitleDB
+    {
+        [JsonPropertyName("data")]
+        public List<Title> Data { get; set; }
+    }
+    public class Title
+    {
+        [JsonPropertyName("id")]
+        public string ID { get; set; }
+        [JsonPropertyName("name")]
+        public string Name { get; set; }
+        // there is other stuff, but we dont want that
+    }
+
+    // Fetches the titledb from the internet and saves that to cache + returns it
+    public static Dictionary<string, string> UpdateTitleDB()
+    {
+        // The name of the game is in a <a> tag, so we need to remove that (length should be static as all ids are the same length)
+        int preLength = "<a href=\"/Title/010000100FB62000\">".Length;
+        int postLength = "</a>".Length;
+
+        // Fetch the new db
+        var client = new HttpClient();
+        //TODO: error handling
+        TitleDB data = null;
+        try
+        {
+            data = client.GetFromJsonAsync<TitleDB>("https://tinfoil.media/Title/ApiJson/").Result;
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Failed during updating title db: {e}");
+        }
+        if (data == null)
+            return null;
+        var result = new Dictionary<string, string>();
+        foreach (var title in data.Data)
+        {
+            var name = HttpUtility.HtmlDecode(title.Name);
+            result[title.ID] = name.Substring(preLength, name.Length - preLength - postLength);
+        }
+
+        // Serialize and save it to disk
+        var json = JsonSerializer.Serialize(result);
+        File.WriteAllText(TitleDBCache, json); //TODO: error handling
+        return result;
     }
 }

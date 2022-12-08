@@ -121,33 +121,26 @@ internal class Program
             if (shouldShowGame)
                 titleDB = GetTitleDB(); // only when option to fetch names is enabled
             List<Save> yuzuSaves = ListYuzuSaves(yuzuSavePath);
-            Console.WriteLine("Yuzu:");
-            foreach (var save in yuzuSaves)
+            var printSaves = (List<Save> saves) =>
             {
-                string gameInfo = "";
-                if (shouldShowGame)
+                foreach (var save in saves)
                 {
-                    var gameName = "<unknown>";
-                    titleDB.TryGetValue(save.TitleID, out gameName);
-                    gameInfo = $"({gameName})";
+                    string gameInfo = "";
+                    if (shouldShowGame)
+                    {
+                        var gameName = "<unknown>";
+                        titleDB.TryGetValue(save.TitleID, out gameName);
+                        gameInfo = $"({gameName})";
+                    }
+
+                    Console.WriteLine($"- TitleID {save.TitleID} {gameInfo}, Path: {save.Path}");
                 }
-                    
-                Console.WriteLine($"- TitleID {save.TitleID} {gameInfo}, Path: {save.Path}");
-            }
+            };
+            Console.WriteLine("Yuzu:");
+            printSaves(yuzuSaves);
             var ryujinxSaves = ListRyujinxSaves(ryujinxSavePath);
             Console.WriteLine("Ryujinx:");
-            foreach (var save in ryujinxSaves)
-            {
-                string gameInfo = "";
-                if (shouldShowGame)
-                {
-                    var gameName = "<unknown>";
-                    titleDB.TryGetValue(save.TitleID, out gameName);
-                    gameInfo = $"({gameName})";
-                }
-
-                Console.WriteLine($"- TitleID {save.TitleID} {gameInfo}, Path: {save.Path}");
-            }
+            printSaves(ryujinxSaves);
 
             // TODO: ask what to transfer
             if (string.IsNullOrEmpty(source))
@@ -155,8 +148,9 @@ internal class Program
                 Console.WriteLine($"No source given! (--{sourceOption.Name} <{string.Join("|", sourceOption.GetCompletions())}>)");
                 return;
             }
-            var sourceSaves = source == "yuzu" ? yuzuSaves : ryujinxSaves;
-            var destSaves = source == "yuzu" ? ryujinxSaves : yuzuSaves;
+            var isYuzuSource = source == "yuzu";
+            var sourceSaves = isYuzuSource ? yuzuSaves : ryujinxSaves;
+            var destSaves = isYuzuSource ? ryujinxSaves : yuzuSaves;
             if (all)
             {
                 titles = sourceSaves.Select(s => s.TitleID).ToArray();
@@ -186,14 +180,14 @@ internal class Program
                 var dstSave = destSaves.Find(s => s.TitleID == title);
                 if (dstSave == null)
                 {
-                    Console.WriteLine($"Title {title} {gameInfo}not found in destination {(source == "yuzu" ? "Ryujinx" : "Yuzu")}");
+                    Console.WriteLine($"Title {title} {gameInfo}not found in destination {(isYuzuSource ? "Ryujinx" : "Yuzu")}");
                     continue;
                 }
 
                 Console.WriteLine($"Transfering {title} {gameInfo} from {srcSave.Path} to {dstSave.Path}");
-                var sourcePath = source == "yuzu" ? yuzuSavePath : ryujinxSavePath;
-                var destPath = source == "yuzu" ? ryujinxSavePath : yuzuSavePath;
-                if (!TransferSave(sourcePath, destPath, srcSave.Path, dstSave.Path, source))
+                var sourcePath = isYuzuSource ? yuzuSavePath : ryujinxSavePath;
+                var destPath = isYuzuSource ? ryujinxSavePath : yuzuSavePath;
+                if (!TransferSave(sourcePath, destPath, srcSave.Path, dstSave.Path, isYuzuSource))
                     Console.WriteLine("Failed!");
             }
         },
@@ -295,16 +289,16 @@ internal class Program
     }
 
     // Transfers the save from $srcSavePath/srcDir to $dstSavePath/dstDir
-    public static bool TransferSave(DirectoryInfo srcSavePath, DirectoryInfo dstSavePath, string srcDir, string dstDir, string source)
+    public static bool TransferSave(DirectoryInfo srcSavePath, DirectoryInfo dstSavePath, string srcDir, string dstDir, bool isYuzuSource)
     {
         // build save folders paths
         var srcPath = Path.Combine(srcSavePath.FullName, srcDir);
         var dstPath = Path.Combine(dstSavePath.FullName, dstDir);
         // ryujinx has the save data in a subdir called 0 (the commited save dir), so add that to the yuzuPath
-        if (source == "yuzu")
-            dstPath = Path.Combine(dstPath, "0");
+        if (isYuzuSource)
+            dstPath = Path.Combine(dstPath, "0"); //dst == ryujinx
         else
-            srcPath = Path.Combine(srcPath, "0");
+            srcPath = Path.Combine(srcPath, "0"); //src == ryujinx
 
         //Console.WriteLine($"source: {srcPath}");
         //Process.Start("explorer.exe", srcPath);

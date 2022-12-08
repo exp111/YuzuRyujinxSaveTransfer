@@ -121,28 +121,32 @@ internal class Program
             {
                 titles = sourceSaves.Select(s => (string)s.TitleID).ToArray();
             }
+            if (titles == null || titles.Length == 0)
+                return;
+
             Console.WriteLine("Titles to transfer:");
             Console.WriteLine(string.Join(",", titles));
-            //TODO: each one: check if exists on both ends + transfer
+            //for each one: check if exists on both ends + transfer
             foreach (var title in titles)
             {
                 var srcSave = sourceSaves.Find(s => s.TitleID == title);
                 if (srcSave == null)
                 {
                     Console.WriteLine($"Title {title} not found in source {source}");
-                    return;
+                    continue;
                 }
                 var dstSave = destSaves.Find(s => s.TitleID == title);
                 if (dstSave == null)
                 {
                     Console.WriteLine($"Title {title} not found in destination {(source == "yuzu" ? "Ryujinx" : "Yuzu")}");
-                    return;
+                    continue;
                 }
 
                 Console.WriteLine($"Transfering {title} from {srcSave.Path} to {dstSave.Path}");
                 var sourcePath = source == "yuzu" ? YuzuSavePath : RyujinxSavePath;
                 var destPath = source == "yuzu" ? RyujinxSavePath : YuzuSavePath;
-                TransferSave(sourcePath, destPath, srcSave.Path, dstSave.Path, source); //TODO: transfer
+                if (!TransferSave(sourcePath, destPath, srcSave.Path, dstSave.Path, source))
+                    Console.WriteLine("Failed!");
             }
         },
         yuzuPath, ryujinxPath, yuzuUser, transferTitles, transferAll, source); //TODO: use binders for yuzu parser?
@@ -250,9 +254,9 @@ internal class Program
             srcPath = Path.Combine(srcPath, "0");
 
         //Console.WriteLine($"source: {srcPath}");
-        Process.Start("explorer.exe", srcPath);
+        //Process.Start("explorer.exe", srcPath);
         //Console.WriteLine($"dst: {dstPath}");
-        Process.Start("explorer.exe", dstPath);
+        //Process.Start("explorer.exe", dstPath);
         // sanity checks
         if (!Path.Exists(srcPath) || !Path.Exists(dstPath))
             return false;

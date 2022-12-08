@@ -25,7 +25,6 @@ internal class Program
 
     private static async Task<int> Main(string[] args)
     {
-        Console.WriteLine("Hello, World!");
         var yuzuPath = new Option<DirectoryInfo?>( //TODO: alias
             name: "--yuzu-path",
             description: "Yuzu's file path");
@@ -159,20 +158,28 @@ internal class Program
             //for each one: check if exists on both ends + transfer
             foreach (var title in titles)
             {
+                string gameInfo = "";
+                if (shouldShowGame)
+                {
+                    var gameName = "<unknown>";
+                    titleDB.TryGetValue(title, out gameName);
+                    gameInfo = $"({gameName}) ";
+                }
+
                 var srcSave = sourceSaves.Find(s => s.TitleID == title);
                 if (srcSave == null)
                 {
-                    Console.WriteLine($"Title {title} not found in source {source}");
+                    Console.WriteLine($"Title {title} {gameInfo}not found in source {source}");
                     continue;
                 }
                 var dstSave = destSaves.Find(s => s.TitleID == title);
                 if (dstSave == null)
                 {
-                    Console.WriteLine($"Title {title} not found in destination {(source == "yuzu" ? "Ryujinx" : "Yuzu")}");
+                    Console.WriteLine($"Title {title} {gameInfo}not found in destination {(source == "yuzu" ? "Ryujinx" : "Yuzu")}");
                     continue;
                 }
 
-                Console.WriteLine($"Transfering {title} from {srcSave.Path} to {dstSave.Path}");
+                Console.WriteLine($"Transfering {title} {gameInfo} from {srcSave.Path} to {dstSave.Path}");
                 var sourcePath = source == "yuzu" ? YuzuSavePath : RyujinxSavePath;
                 var destPath = source == "yuzu" ? RyujinxSavePath : YuzuSavePath;
                 if (!TransferSave(sourcePath, destPath, srcSave.Path, dstSave.Path, source))
